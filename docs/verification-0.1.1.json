@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-21",
+  "package_version": "0.1.1",
+  "platform": "Apple Silicon macOS, Python 3.12.14",
+  "local_tests_passed": 29,
+  "local_tests_skipped": 0,
+  "transport_regressions_failed_before_fix": 4,
+  "cpu_checks": [
+    {
+      "download_timeout_seconds": 15,
+      "upload_and_execution_passed": true,
+      "roundtrip_passed": false,
+      "failure": "both download attempts exceeded test timeout",
+      "elapsed_seconds": 82.87,
+      "release_confirmed": true,
+      "active_assignments_after": 0
+    },
+    {
+      "download_timeout_seconds": 60,
+      "roundtrip_passed": true,
+      "bytes": 168,
+      "sha256": "b17973fb9c814f3fa92438e6ba831b3e564ad66b4f748da3fbcfed4cfe5ed62a",
+      "elapsed_seconds": 22.94,
+      "release_confirmed": true,
+      "active_assignments_after": 0,
+      "usage_rate_after": 0.0
+    }
+  ],
+  "gpu_allocations_this_fix": 0,
+  "model_downloads_this_fix": 0,
+  "observed_balance_delta_cu": 0.0,
+  "balance_display_precision_cu": 0.01,
+  "live_migration": {
+    "port": 8190,
+    "version_confirmed": "0.1.1",
+    "cpu_native_workflow_validation": true,
+    "authorization_preserved": true,
+    "user_files_hash_unchanged": 9,
+    "history_entries_preserved": 3,
+    "existing_launchers_updated": true
+  },
+  "limits": [
+    "No new GPU video inference test in this patch",
+    "1080p capacity and cost not benchmarked",
+    "Cause of the original slow network handshake not identified",
+    "Transient network faults remain possible; inference is never automatically replayed"
+  ]
+}

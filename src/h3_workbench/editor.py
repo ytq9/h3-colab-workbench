@@ -115,6 +115,22 @@ def main():
             return web.json_response({"released": result})
 
         original_routes(instance)
+        history_path = LOCAL / "editor-history.json"
+        if history_path.is_file():
+            try:
+                saved = json.loads(history_path.read_text())
+                if isinstance(saved, dict):
+                    with instance.prompt_queue.mutex:
+                        instance.prompt_queue.history.update(saved)
+            except (OSError, ValueError):
+                print("Saved queue history could not be restored; original file retained.")
+
+        def save_history():
+            temporary = history_path.with_suffix(".tmp")
+            temporary.write_text(json.dumps(instance.prompt_queue.get_history(), ensure_ascii=False))
+            temporary.chmod(0o600)
+            temporary.replace(history_path)
+        atexit.register(save_history)
     server.PromptServer.add_routes = add_routes
     atexit.register(broker.shutdown)
     def terminate(signum, frame):

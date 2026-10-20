@@ -13,6 +13,7 @@ def h3_job_json(path, body=None):
 def h3_worker_job(request_file, result_file):
     global H3_WORKER_BUSY, H3_WORKER_TOUCHED
     H3_WORKER_BUSY = True
+    print("H3_STAGE 工作流已送达，正在提交生成", flush=True)
     result = {"success": False, "outputs": {}, "meta": {}, "files": [], "messages": []}
     try:
         request = json.loads(Path(request_file).read_text())

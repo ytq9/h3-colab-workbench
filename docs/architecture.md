@@ -10,6 +10,7 @@
 | `executor.py` | 保留 ComfyUI 队列/历史接口，将任务交给 broker |
 | `broker.py` | 身份额度检查、单批 GPU、传输、取回校验、释放 |
 | `colab_cli.py` | 官方 CLI 包装、隔离 OAuth 与会话、禁止隐式交互登录 |
+| `colab_transport.py` / `diagnostics.py` | 固定依赖的连接就绪/超时/清理兼容层，私有脱敏传输事件 |
 | `worker.py` / `resources/worker_*.py` | 可独立执行的远程准备、生成、资源释放脚本 |
 
 ## 一次生成
@@ -54,6 +55,10 @@ credential_dir/             OAuth、官方 CLI 会话历史、私有错误日志
 ```
 
 错误日志按操作和时间分别保存。释放错误不会覆盖上传或生成错误；日志脱敏后保存在私有目录，不自动附加到 Issue 或上传 GitHub。
+
+WebSocket 初次就绪等待为依赖默认 10 秒，再给延迟握手最多 20 秒；未就绪时不发送代码。前置命令失败也关闭监听线程；执行回复受单一时限约束。执行请求发送后发生异常不会自动重放。传输事件日志按 1 MiB 轮转、最多保留三份，不记录请求头、代码或输出正文。
+
+本机正常停止时把 ComfyUI 历史保存到 `runtime_dir/editor-history.json`，下次启动恢复。它不恢复待执行队列，也不恢复中断的视频推理。
 
 ## 边界
 

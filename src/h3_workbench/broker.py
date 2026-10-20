@@ -14,6 +14,7 @@ import uuid
 
 from .worker import setup_script, job_script, lease_script
 from .config import load_settings, subprocess_env
+from .diagnostics import redact_diagnostic
 from . import __version__
 
 
@@ -30,16 +31,6 @@ def safe_relative(value):
     if not value or path.is_absolute() or ".." in path.parts or "\\" in value:
         raise ValueError("文件路径必须位于项目目录内。")
     return path
-
-
-def redact_diagnostic(text):
-    text = re.sub(r"(?i)(Bearer\s+)[A-Za-z0-9._~-]+", r"\1<REDACTED>", text)
-    text = re.sub(r"eyJ[A-Za-z0-9_.-]{20,}", "<REDACTED>", text)
-    text = re.sub(
-        r"""(?i)((?:access_token|refresh_token|id_token|client_secret|authorization)["']?\s*[:=]\s*["']?)[^"'\s,}]+""",
-        r"\1<REDACTED>", text,
-    )
-    return re.sub(r"(https?://[^\s?]+)\?[^\s]+", r"\1?<REDACTED>", text)
 
 
 class ColabBroker:
@@ -147,7 +138,7 @@ class ColabBroker:
                 if "H3_AUTH_REQUIRED" in result or "authorize colab-cli" in result:
                     self.authorized = False
                     raise RuntimeError("请先在本机工作台点击“连接 Google”。")
-                raise RuntimeError(f"Colab 操作失败（{args[0]}）；详情见本机私有诊断日志。未自动重试生成。")
+                raise RuntimeError(f"Colab 操作失败（{args[0]}，阶段：{self.stage}）；详情见本机私有诊断日志。未自动重试生成。")
             return result
         except Exception as error:
             # Keep the original upload/generation failure when later cleanup
@@ -158,7 +149,9 @@ class ColabBroker:
             log_dir.chmod(0o700)
             operation = re.sub(r"[^a-zA-Z0-9_]", "", str(args[0])) or "operation"
             log = log_dir / f"{operation}-{time.time_ns()}-{uuid.uuid4().hex[:6]}.log"
-            log.write_text(redact_diagnostic("".join(lines) + "\n" + type(error).__name__))
+            log.write_text(redact_diagnostic(
+                f"operation={operation}\nstage={self.stage}\nexit_code={proc.poll()}\n"
+                + "".join(lines) + "\n" + type(error).__name__ + ": " + str(error)))
             log.chmod(0o600)
             raise
         finally:
@@ -405,6 +398,7 @@ class ColabBroker:
             self.transfer(["upload", "-s", self.session, str(request), remote_request], timeout=60)
             script = self.local / "remote-job.py"
             script.write_text(job_script(remote_request, remote_result))
+            self.set_stage("素材已上传，正在连接生成执行器")
             self.command(["exec", "-s", self.session, "-f", str(script), "--timeout", "1300"], timeout=1350)
             result_path = folder / "result.json"
             self.transfer(["download", "-s", self.session, remote_result, str(result_path)], timeout=60)

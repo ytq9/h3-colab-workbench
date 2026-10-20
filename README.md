@@ -4,7 +4,7 @@
 
 适合个人使用自己的 Colab 计算额度进行 MiniMax H3 文生视频、图生视频。工作台运行在本机，不需要每轮登录临时公网入口。
 
-**v0.1.0 验证**：23 项本地测试、独立 CPU 安装与工作流校验通过，正式包已完成一次约五秒的真实 GPU 生成、结果校验和自动释放。详见[验证记录](docs/verification.md)。
+**v0.1.1** 修复延迟连接时命令提前发送的问题，29 项本地回归测试通过。v0.1.0 已完成一次约五秒的真实 GPU 生成、结果校验和自动释放；1080p 尚未实测。详见[验证记录](docs/verification.md)和[故障分析](docs/incident-2026-10-21.md)。
 
 ```mermaid
 flowchart LR
@@ -92,7 +92,7 @@ python3.12 -m venv .venv
 基础包只依赖 Python 标准库。以下检查不启动 Colab，也不下载模型：
 
 ```bash
-python3.12 -m pip install .
+python3.12 -m pip install '.[colab]'
 python3.12 -m unittest discover -s tests -v
 python3.12 scripts/check_release.py
 python3.12 -m pip wheel --no-deps . -w dist

@@ -5,6 +5,8 @@ from pathlib import Path
 import sys
 
 from .config import load_settings
+from .colab_transport import install_transport_guards
+from .diagnostics import configure_cli_logging
 
 
 def accept_identity(private, email, expected, reconnecting):
@@ -63,12 +65,14 @@ def main():
         correct = accept_identity(PRIVATE, email, EXPECTED_ACCOUNT, mode == "--h3-login")
         print("H3_IDENTITY " + json.dumps({"email": email, "correct_account": correct}))
         return 0 if correct else 4
-    from colab_cli.cli import app
+    install_transport_guards()
+    from colab_cli import cli as upstream_cli
+    upstream_cli.setup_logging = lambda log_to_stderr: configure_cli_logging(PRIVATE)
     from colab_cli.common import state
     from colab_cli.history import HistoryLogger
     state._history = HistoryLogger(str(PRIVATE / "cli-history"))
     sys.argv[1:1] = ["--auth", "oauth2", "--client-oauth-config", str(PRIVATE / "oauth-client.json"), "--config", str(PRIVATE / "sessions.json")]
-    app()
+    upstream_cli.app()
     return 0
 
 

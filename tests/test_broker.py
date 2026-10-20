@@ -205,6 +205,20 @@ class LocalBrokerTests(unittest.TestCase):
         self.assertEqual({p.name.split("-")[0] for p in logs}, {"upload", "stop"})
         self.assertTrue(all(p.stat().st_mode & 0o777 == 0o600 for p in logs))
 
+    def test_post_upload_failure_has_submission_stage_and_is_not_replayed(self):
+        original = self.broker.command
+        submitted = []
+        def fail_submission(args, **kwargs):
+            if args[0] == "exec" and "remote-job.py" in " ".join(args):
+                submitted.append(self.broker.stage)
+                raise RuntimeError("Connection was lost.")
+            return original(args, **kwargs)
+        self.broker.command = fail_submission
+        with self.assertRaisesRegex(RuntimeError, "Connection was lost"):
+            self.run_job()
+        self.assertEqual(submitted, ["素材已上传，正在连接生成执行器"])
+        self.assertTrue(self.broker.release_confirmed)
+
     def test_assets_are_snapshotted_and_secrets_are_not_in_job(self):
         inputs = self.broker.project / "input";inputs.mkdir(parents=True)
         (inputs / "source.png").write_bytes(b"image")
