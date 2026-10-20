@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-21",
+  "package_version": "0.1.0",
+  "platform": "Apple Silicon macOS, Python 3.12.14",
+  "local_tests_passed": 23,
+  "clean_cpu_install": true,
+  "native_workflow_validation": true,
+  "wheel_resources_and_licenses_verified": true,
+  "gpu_test": {
+    "workflow": "text to video",
+    "requested_gpu": "A100 high memory",
+    "steps": 8,
+    "turbo": true,
+    "elapsed_seconds": 316.63,
+    "account_balance_delta_cu": 0.27,
+    "result_sha256_verified": true,
+    "media": [
+      {
+        "width": 608,
+        "height": 352,
+        "fps": 24.0,
+        "duration_seconds": 5.166688,
+        "video_codec": "h264",
+        "audio_codec": "aac",
+        "size_bytes": 435358,
+        "sha256": "102336becd90715d2c5ad848c797c30907c3b09b17775f0295b48d5b33b7f3e4",
+        "decoded_video_frames": 124,
+        "decoded_audio_frames": 162
+      }
+    ],
+    "gpu_release_confirmed": true,
+    "active_assignments_after": 0,
+    "usage_rate_after": 0.0
+  },
+  "limits": [
+    "1080p memory, speed and cost not benchmarked",
+    "long-term stability not established",
+    "historical intermittent input transfer failure root cause not proven"
+  ]
+}
