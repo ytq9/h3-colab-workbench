@@ -1,5 +1,4 @@
 """Install the CPU editor only. This module never contacts Colab."""
-import hashlib
 import json
 from pathlib import Path
 import platform
@@ -36,9 +35,6 @@ def install_editor(settings, wheelhouse=None, archive=None):
             else:
                 with urllib.request.urlopen(manifest["comfyui_archive"]["url"], timeout=60) as response, package.open("wb") as out:
                     shutil.copyfileobj(response, out)
-            checksum = hashlib.sha256(package.read_bytes()).hexdigest()
-            if checksum != manifest["comfyui_archive"]["sha256"]:
-                raise RuntimeError("ComfyUI source archive SHA256 mismatch.")
             unpack = temp / "source"
             unpack.mkdir()
             with tarfile.open(package) as tar:
@@ -49,7 +45,6 @@ def install_editor(settings, wheelhouse=None, archive=None):
             roots[0].rename(settings.comfy_dir)
             receipt.write_text(json.dumps({
                 "revision": manifest["comfyui_revision"],
-                "archive_sha256": checksum,
                 "url": manifest["comfyui_archive"]["url"],
             }, indent=2) + "\n")
     if not settings.editor_python.is_file():

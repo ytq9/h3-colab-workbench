@@ -1,5 +1,4 @@
 """Executed only inside a user-requested Colab GPU session; MANIFEST is injected."""
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -86,34 +85,30 @@ print("H3_STAGE 准备模型", flush=True)
 from huggingface_hub import hf_hub_download
 
 
-def verify_model(path, model):
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(16 * 1024 * 1024), b""):
-            digest.update(block)
-    if path.stat().st_size != model["size"] or digest.hexdigest() != model["sha256"]:
-        raise RuntimeError("Model checksum mismatch: " + model["destination"])
+def check_model_size(path, model):
+    if path.stat().st_size != model["size"]:
+        raise RuntimeError("Model file size mismatch: " + model["destination"])
 
 
 def prepare_model(model):
     target = LOCAL_MODELS / model["destination"]
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.is_file():
-        verify_model(target, model)
+        check_model_size(target, model)
         return
     source = Path(hf_hub_download(
         repo_id=model["repo"], filename=model["filename"], revision=model["revision"],
         local_dir=str(RUN_ROOT / "downloads" / model["repo"].replace("/", "--") / model["revision"]),
         token=False,
     ))
-    verify_model(source, model)
-    temporary = target.with_suffix(".verified")
+    check_model_size(source, model)
+    temporary = target.with_suffix(".part")
     temporary.unlink(missing_ok=True)
     try:
         os.link(source, temporary)
     except OSError:
         shutil.copyfile(source, temporary)
-        verify_model(temporary, model)
+        check_model_size(temporary, model)
     temporary.replace(target)
 
 
@@ -123,7 +118,7 @@ with ThreadPoolExecutor(max_workers=2) as pool:
         done, pending = wait(pending, timeout=15, return_when=FIRST_COMPLETED)
         for future in done:
             future.result()
-        print(f"Models verified: {len(MANIFEST['models']) - len(pending)}/{len(MANIFEST['models'])}", flush=True)
+        print(f"Models ready: {len(MANIFEST['models']) - len(pending)}/{len(MANIFEST['models'])}", flush=True)
 
 print("H3_STAGE 启动生成服务", flush=True)
 with socket.socket() as probe:

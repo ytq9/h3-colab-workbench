@@ -1,4 +1,4 @@
-import hashlib, json, time, urllib.request
+import json, time, urllib.request
 from pathlib import Path
 
 def h3_job_json(path, body=None):
@@ -55,12 +55,8 @@ def h3_worker_job(request_file, result_file):
             path.relative_to(OUTPUT_DIR.resolve())
             if not path.is_file():
                 raise RuntimeError("生成结果文件不存在。")
-            digest = hashlib.sha256()
-            with path.open("rb") as handle:
-                for block in iter(lambda: handle.read(1024 * 1024), b""):
-                    digest.update(block)
             result["files"].append({"filename": filename, "subfolder": subfolder,
-                                    "size": path.stat().st_size, "sha256": digest.hexdigest(),
+                                    "size": path.stat().st_size,
                                     "remote_path": str(path)})
     except Exception as error:
         result["success"] = False

@@ -1,5 +1,4 @@
 """On-demand lifecycle/transfer checks against a fake CLI; never allocate a VM."""
-import hashlib
 import json
 from pathlib import Path
 import tempfile
@@ -26,7 +25,7 @@ class FakeBroker(ColabBroker):
         self.balance = "191.82"
         self.identity_ok = True
         self.fail_at = None
-        self.bad_hash = False
+        self.incomplete_download = False
         self.release_fails = False
         self.active_assignments = 0
 
@@ -53,10 +52,9 @@ class FakeBroker(ColabBroker):
                     "success": True, "messages": [], "meta": {},
                     "outputs": {"92": {"images": [{"filename": "clip.mp4", "subfolder": "video", "type": "output"}]}},
                     "files": [{"filename": "clip.mp4", "subfolder": "video", "size": 7,
-                               "sha256": "invalid" if self.bad_hash else hashlib.sha256(b"fixture").hexdigest(),
                                "remote_path": "/content/h3-worker-files/output/video/clip.mp4"}]}))
             else:
-                target.write_bytes(b"fixture")
+                target.write_bytes(b"short" if self.incomplete_download else b"fixture")
             return "Downloaded"
         if args[0] == "stop":
             if self.release_fails:
@@ -80,7 +78,7 @@ class LocalBrokerTests(unittest.TestCase):
         self.assertIsNone(self.broker.session)
         self.assertFalse(self.broker.status()["gpu_session"])
 
-    def test_success_downloads_verifies_then_releases_and_rewrites_preview(self):
+    def test_success_without_digest_checks_size_releases_and_rewrites_preview(self):
         result = self.run_job()
         commands = [call[0] for call in self.broker.calls]
         self.assertEqual(commands[:3], ["--h3-check", "usage", "new"])
@@ -119,12 +117,23 @@ class LocalBrokerTests(unittest.TestCase):
             self.assertEqual(broker.calls[-1][0], "stop")
             self.assertIsNone(broker.session)
 
-    def test_bad_download_hash_is_not_reported_as_complete(self):
-        self.broker.bad_hash = True
-        with self.assertRaisesRegex(RuntimeError, "校验失败"):
+    def test_incomplete_download_is_not_reported_as_complete(self):
+        self.broker.incomplete_download = True
+        with self.assertRaisesRegex(RuntimeError, "大小不符"):
             self.run_job()
         self.assertEqual(self.broker.calls[-1][0], "stop")
         self.assertEqual(list((self.broker.project / "output").rglob("*.mp4")), [])
+
+    def test_video_download_does_not_scan_the_received_file(self):
+        original_open = Path.open
+        def metadata_only(path, mode="r", *args, **kwargs):
+            if "r" in mode and "b" in mode and path.suffix in {".mp4", ".part"}:
+                raise AssertionError("Unexpected video content scan")
+            return original_open(path, mode, *args, **kwargs)
+        with patch.object(Path, "open", metadata_only):
+            result = self.run_job()
+        self.assertTrue(result["success"])
+        self.assertTrue(self.broker.release_confirmed)
 
     def test_uncertain_release_blocks_reuse_and_reports_attention(self):
         self.broker.release_fails = True

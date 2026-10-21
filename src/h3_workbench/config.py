@@ -44,6 +44,8 @@ class Settings:
 
     @property
     def instance_id(self):
+        # Stable identifier for ownership records; hashes only this short
+        # configuration string, never model, video or archive contents.
         payload = f"{self.account_email}\n{self.project_dir}\n{self.runtime_dir}\n{self.port}"
         return hashlib.sha256(payload.encode()).hexdigest()[:16]
 

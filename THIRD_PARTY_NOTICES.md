@@ -9,7 +9,7 @@
 | google-colab-cli | [googlecolab/google-colab-cli](https://github.com/googlecolab/google-colab-cli)，0.7.4 | Apache-2.0；通过 Python 包安装，未复制其源码 |
 | jupyter-kernel-client | [datalayer/jupyter-kernel-client](https://github.com/datalayer/jupyter-kernel-client)，0.9.0 | BSD-3-Clause；由 CLI 固定依赖安装，工作台在自身子进程内加连接兼容层 |
 | ComfyUI 前端 | comfyui-frontend-package 1.55.18 | 安装为依赖，遵循其上游许可证 |
-| H3 模型 | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) | 仅分发版本和校验清单；使用者应阅读模型仓库的许可证及模型卡 |
+| H3 模型 | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) | 仅分发版本和文件清单；使用者应阅读模型仓库的许可证及模型卡 |
 | Turbo LoRA | [lightx2v/Minimax-h3-Turbo](https://huggingface.co/lightx2v/Minimax-h3-Turbo) | 同上，不分发权重 |
 
-模型和依赖的具体提交、文件名、大小与 SHA256 位于 `src/h3_workbench/resources/manifest.json`。Google Colab 的使用同时受其服务条款与资源分配规则约束。
+模型和依赖的具体提交、文件名及大小位于 `src/h3_workbench/resources/manifest.json`。Google Colab 的使用同时受其服务条款与资源分配规则约束。

@@ -1,6 +1,5 @@
 """Run the original ComfyUI queue on on-demand Colab GPUs, not on the Mac."""
 import copy
-import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -16,14 +15,6 @@ from .worker import setup_script, job_script, lease_script
 from .config import load_settings, subprocess_env
 from .diagnostics import redact_diagnostic
 from . import __version__
-
-
-def digest(path):
-    value = hashlib.sha256()
-    with Path(path).open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            value.update(block)
-    return value.hexdigest()
 
 
 def safe_relative(value):
@@ -365,8 +356,8 @@ class ColabBroker:
             target.parent.mkdir(parents=True, exist_ok=True)
             partial = target.with_suffix(target.suffix + ".part")
             self.transfer(["download", "-s", self.session, item["remote_path"], str(partial)], timeout=120)
-            if partial.stat().st_size != item["size"] or digest(partial) != item["sha256"]:
-                raise RuntimeError("视频传输校验失败，未将其标记为完成。")
+            if partial.stat().st_size != item["size"]:
+                raise RuntimeError("视频下载大小不符，未将其标记为完成。")
             partial.replace(target)
             mapping[(subfolder, filename)] = local_subfolder
         def rewrite(value):

@@ -5,10 +5,10 @@
 | 模块 | 职责 |
 |---|---|
 | `config.py` / `cli.py` | 配置、安装入口、本机启动停止、诊断 |
-| `install.py` | 校验并安装固定版本 ComfyUI 与 CPU 依赖 |
+| `install.py` | 安装固定版本 ComfyUI 与 CPU 依赖 |
 | `editor.py` | 原版 CPU 画布、回环访问约束、Google 连接路由 |
 | `executor.py` | 保留 ComfyUI 队列/历史接口，将任务交给 broker |
-| `broker.py` | 身份额度检查、单批 GPU、传输、取回校验、释放 |
+| `broker.py` | 身份额度检查、单批 GPU、传输、取回保存、释放 |
 | `colab_cli.py` | 官方 CLI 包装、隔离 OAuth 与会话、禁止隐式交互登录 |
 | `colab_transport.py` / `diagnostics.py` | 固定依赖的连接就绪/超时/清理兼容层，私有脱敏传输事件 |
 | `worker.py` / `resources/worker_*.py` | 可独立执行的远程准备、生成、资源释放脚本 |
@@ -23,11 +23,11 @@ sequenceDiagram
     U->>B: 运行已验证工作流
     B->>B: 保存素材和工作流快照
     B->>C: 核对账号/额度，申请 GPU
-    B->>C: 安装固定源码并校验模型
+    B->>C: 安装固定源码并下载模型
     B->>C: 传送素材与工作流
     B->>C: 执行一次生成
-    C-->>B: 结果描述与文件哈希
-    B->>B: 下载、校验、原子保存
+    C-->>B: 结果描述、文件路径和大小
+    B->>B: 下载、检查大小、原子保存
     B-->>U: 更新预览与历史
     B->>C: 队列清空后释放
 ```
@@ -46,7 +46,7 @@ stop 失败后，若已确认分配过 GPU，会查询实时会话数量。明�
 project_dir/
   input/                    用户素材
   user/default/workflows/   保存的工作流与预设
-  output/video/<job-id>/    校验后的结果
+  output/video/<job-id>/    保存的结果
   jobs/<job-id>/            输入快照、请求与结果记录
   executed-workflows/      已提交的 UI/API 工作流
 
@@ -64,4 +64,6 @@ WebSocket 初次就绪等待为依赖默认 10 秒，再给延迟握手最多 20
 
 本机只监听 127.0.0.1；写请求校验 Host 和 Origin。没有公网隧道、远程工作台口令或云端 Drive 挂载。传给 Colab 的请求仅保留工作流与必要素材，不携带本机 Google token。
 
-模型来源、版本、大小、SHA256 及两个原版工作流的校验值位于 `resources/manifest.json`。CPU 依赖使用已验证快照；GPU 环境沿用固定 ComfyUI 提交的 requirements，Colab 自带 CUDA/PyTorch 基础环境不由本仓库锁定。
+模型来源、版本、大小及两个原版工作流的来源位于 `resources/manifest.json`。模型准备和视频取回仅检查文件大小，不额外读取整个文件计算哈希。源码包使用固定提交的下载地址与安全解包，不做内容摘要校验。下载库及协议自身的数据处理由相应依赖管理。
+
+CPU 依赖使用已验证快照；GPU 环境沿用固定 ComfyUI 提交的 requirements，Colab 自带 CUDA/PyTorch 基础环境不由本仓库锁定。
