@@ -4,9 +4,11 @@ import json
 from .config import RESOURCES
 
 
-def setup_script():
-    manifest = json.loads((RESOURCES / "manifest.json").read_text())
-    return "MANIFEST = " + repr(manifest) + "\n" + (RESOURCES / "worker_bootstrap.py").read_text()
+def setup_script(manifest=None):
+    manifest = manifest or json.loads((RESOURCES / "manifest.json").read_text())
+    return ("MANIFEST = " + repr(manifest) + "\n"
+            + (RESOURCES / "extension_install.py").read_text() + "\n"
+            + (RESOURCES / "worker_bootstrap.py").read_text())
 
 
 def job_script(request_file, result_file):

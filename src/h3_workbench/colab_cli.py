@@ -6,7 +6,7 @@ import sys
 
 from .config import load_settings
 from .colab_transport import install_transport_guards
-from .diagnostics import configure_cli_logging
+from .diagnostics import configure_cli_logging, without_preview_events
 
 
 def accept_identity(private, email, expected, reconnecting):
@@ -70,7 +70,12 @@ def main():
     upstream_cli.setup_logging = lambda log_to_stderr: configure_cli_logging(PRIVATE)
     from colab_cli.common import state
     from colab_cli.history import HistoryLogger
-    state._history = HistoryLogger(str(PRIVATE / "cli-history"))
+    class WorkbenchHistory(HistoryLogger):
+        def log_event(self, session_name, event_type, data=None):
+            if event_type == "execution" and isinstance(data, dict):
+                data = without_preview_events(data)
+            return super().log_event(session_name, event_type, data or {})
+    state._history = WorkbenchHistory(str(PRIVATE / "cli-history"))
     sys.argv[1:1] = ["--auth", "oauth2", "--client-oauth-config", str(PRIVATE / "oauth-client.json"), "--config", str(PRIVATE / "sessions.json")]
     upstream_cli.app()
     return 0

@@ -1,0 +1,98 @@
+{
+  "models": [
+    {
+      "repo": "Winnougan/Cobijada_Minimax-H3_Hybrid_Pruned_ComfyUI",
+      "revision": "d14d58723efadf84de98bc2c3a3613cfedea4d04",
+      "filename": "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors",
+      "destination": "diffusion_models/Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors",
+      "size": 20970382008
+    },
+    {
+      "repo": "Comfy-Org/MiniMax-H3",
+      "revision": "e5eb578a89295337b8ff433a035929ce0279e0b6",
+      "filename": "text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+      "destination": "text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+      "size": 27141342152
+    },
+    {
+      "repo": "Comfy-Org/MiniMax-H3",
+      "revision": "e5eb578a89295337b8ff433a035929ce0279e0b6",
+      "filename": "vae/minimax_h3_video_vae_fp16.safetensors",
+      "destination": "vae/minimax_h3_video_vae_fp16.safetensors",
+      "size": 5207808496
+    },
+    {
+      "repo": "Comfy-Org/MiniMax-H3",
+      "revision": "e5eb578a89295337b8ff433a035929ce0279e0b6",
+      "filename": "vae/minimax_h3_audio_vae_fp32.safetensors",
+      "destination": "vae/minimax_h3_audio_vae_fp32.safetensors",
+      "size": 605254808,
+      "families": [
+        "fl2va",
+        "ref2va"
+      ]
+    },
+    {
+      "repo": "lightx2v/Minimax-h3-Turbo",
+      "revision": "30f485ed874aa44c8183348ad361c5eabad318da",
+      "filename": "minimax_h3_ref2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors",
+      "destination": "loras/minimax_h3_ref2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors",
+      "size": 1956193000
+    },
+    {
+      "repo": "Kijai/MiniMax-H3-TAE",
+      "revision": "a213ac8bf2f148b4f32372279a7f207846978900",
+      "filename": "vae_approx/taeh3.safetensors",
+      "destination": "vae_approx/taeh3.safetensors",
+      "size": 9791388
+    }
+  ],
+  "extensions": [
+    {
+      "name": "h3_KJNodes",
+      "repo": "kijai/ComfyUI-KJNodes",
+      "revision": "3f20054214fec9f9234fd3841ae6f1e4287948f6",
+      "wrapper": "kj_preview",
+      "node_types": [
+        "ModelPreviewOverrideKJ",
+        "GetPreviewOverrideFramesKJ"
+      ],
+      "files": [
+        "LICENSE",
+        "nodes/preview_override_node.py",
+        "nodes/tiny_vae.py",
+        "web/js/setgetnodes.js",
+        "web/js/contextmenu.js",
+        "web/js/fix_node.js",
+        "web/js/utility.js",
+        "web/js/preview_override/preview_override.js",
+        "web/js/preview_override/preview_override.css"
+      ]
+    },
+    {
+      "name": "h3_VideoHelperSuite",
+      "repo": "Kosinkadink/ComfyUI-VideoHelperSuite",
+      "revision": "4ee72c065db22c9d96c2427954dc69e7b908444b",
+      "wrapper": null,
+      "node_prefix": "VHS_",
+      "requirements": [
+        "opencv-python-headless==5.0.0.93",
+        "imageio-ffmpeg==0.6.0"
+      ]
+    },
+    {
+      "name": "h3_Goohai",
+      "repo": "goohai/Goohaitools-comfyui",
+      "revision": "8d9499f74f13764182634b02a2b390579491bd21",
+      "wrapper": "goohai_ignore",
+      "node_types": [
+        "忽略多组孤海"
+      ],
+      "files": [
+        "LICENSE",
+        "nodes/忽略多组.py",
+        "web/js/nodes pass.js"
+      ]
+    }
+  ]
+}

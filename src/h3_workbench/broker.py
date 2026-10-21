@@ -14,6 +14,7 @@ import uuid
 from .worker import setup_script, job_script, lease_script
 from .config import load_settings, subprocess_env
 from .diagnostics import redact_diagnostic
+from .catalog import plan_environment, environment_key, reachable_nodes, H3_NODES
 from . import __version__
 
 
@@ -45,7 +46,10 @@ class ColabBroker:
         self.release_confirmed = True
         self.allocated_confirmed = False
         self.worker_ready = False
+        self.environment = None
         self.active_job = False
+        self.event_job_id = None
+        self.event_client_id = None
         self.local.mkdir(parents=True, exist_ok=True)
         self.owned_record = self.private / f"owned-{self.settings.instance_id}.json"
         if self.owned_record.is_file():
@@ -119,6 +123,9 @@ class ColabBroker:
                 if line is None:
                     ended = True
                     continue
+                if line.startswith("H3_EVENT "):
+                    self.relay_event(line[9:])
+                    continue
                 lines.append(line)
                 if len(lines) > 2000:
                     lines = lines[-1000:]
@@ -154,6 +161,24 @@ class ColabBroker:
                     proc.kill()
                     proc.wait(timeout=5)
             proc.stdout.close()
+
+    def relay_event(self, payload):
+        if not self.event_job_id or len(payload) > 8 * 1024**2:
+            return
+        try:
+            event = json.loads(payload)
+            if event.get("job_id") != self.event_job_id:
+                return
+            if event.get("type") not in {"progress", "executing", "kj_preview_override"}:
+                return
+            data = event.get("data")
+            if not isinstance(data, dict):
+                return
+            if data.get("prompt_id", self.event_job_id) != self.event_job_id:
+                return
+            self.emit(event["type"], data, self.event_client_id)
+        except Exception:
+            return
 
     def transfer(self, args, timeout):
         if args[0] not in ("upload", "download"):
@@ -234,11 +259,16 @@ class ColabBroker:
             self.auth_process.stdin.flush()
         self.auth_message = "正在向 Google 完成授权…"
 
-    def ensure_gpu(self):
+    def ensure_gpu(self, manifest=None):
+        wanted = environment_key(manifest) if manifest else None
         if self.session:
             if self.worker_ready and not self.release_confirmed:
-                return
-            raise RuntimeError("上一次 GPU 会话状态未确认，请先到 Colab 检查。")
+                if wanted is None or (self.environment and all(a <= b for a, b in zip(wanted, self.environment))):
+                    return
+                if not self.stop_gpu():
+                    raise RuntimeError("切换模型前的 GPU 释放未确认，请先检查会话。")
+            else:
+                raise RuntimeError("上一次 GPU 会话状态未确认，请先到 Colab 检查。")
         self.check_identity()
         usage = self.command(["usage"], timeout=90)
         balance = re.search(r"(?:Current balance|Balance):\s*([\d,.]+)", usage, re.I)
@@ -252,9 +282,12 @@ class ColabBroker:
         self.allocated_confirmed = True
         self.persist_owned_session()
         script = self.local / "remote-setup.py"
-        script.write_text(setup_script())
-        self.command(["exec", "-s", self.session, "-f", str(script), "--timeout", "1200"], timeout=1300)
+        script.write_text(setup_script(manifest))
+        output = self.command(["exec", "-s", self.session, "-f", str(script), "--timeout", "1200"], timeout=1300)
+        if "H3_WORKER_READY" not in output:
+            raise RuntimeError("Colab 生成环境未成功就绪；请检查本机诊断日志。")
         self.worker_ready = True
+        self.environment = wanted
 
     def stop_gpu(self):
         with self._stop_lock:
@@ -286,6 +319,7 @@ class ColabBroker:
                 self.session = None
                 self.release_confirmed = True
                 self.allocated_confirmed = False
+                self.environment = None
                 self.set_stage("本机 CPU 编辑 · GPU 已释放")
                 return True
             self.release_confirmed = False
@@ -293,43 +327,37 @@ class ColabBroker:
             return False
 
     def prepare_job(self, prompt, prompt_id, extra, partial_targets=None):
-        reachable = set()
-        pending = list(partial_targets if partial_targets is not None else prompt)
-        while pending:
-            ident = str(pending.pop())
-            if ident in reachable or ident not in prompt:
-                continue
-            reachable.add(ident)
-            for value in prompt[ident].get("inputs", {}).values():
-                if isinstance(value, list) and len(value) == 2 and isinstance(value[0], str):
-                    pending.append(value[0])
-        if not any(prompt[n].get("class_type") == "MiniMaxH3ImageToVideo" for n in reachable):
-            raise ValueError("此工作台目前支持 H3 文生和图生模板。")
+        reachable = reachable_nodes(prompt, partial_targets)
+        if not any(prompt[n].get("class_type") in H3_NODES for n in reachable):
+            raise ValueError("此工作台支持 H3 文生、图生和参考素材生成工作流。")
         job_id = str(uuid.UUID(prompt_id))
         folder = self.project / "jobs" / job_id
         folder.mkdir(parents=True, exist_ok=False)
         request = {"prompt": copy.deepcopy(prompt), "prompt_id": job_id, "client_id": job_id,
-                   "extra_data": {"extra_pnginfo": extra.get("extra_pnginfo", {})}}
+                   "extra_data": {"extra_pnginfo": extra.get("extra_pnginfo", {})}, "stream_events": True}
         if partial_targets is not None:
             request["partial_execution_targets"] = list(partial_targets)
         assets = []
+        upload_inputs = {"LoadImage": ("image", 100 * 1024**2), "LoadAudio": ("audio", 512 * 1024**2),
+                         "VHS_LoadVideo": ("video", 1024**3), "VHS_LoadVideoFFmpeg": ("video", 1024**3)}
         for ident, node in request["prompt"].items():
-            if ident not in reachable or node.get("class_type") != "LoadImage":
+            if ident not in reachable or node.get("class_type") not in upload_inputs:
                 continue
-            name = node["inputs"].get("image")
+            field, size_limit = upload_inputs[node["class_type"]]
+            name = node["inputs"].get(field)
             if not isinstance(name, str):
-                raise ValueError("图片输入必须来自工作台上传目录。")
+                raise ValueError("参考素材必须来自工作台上传目录。")
             relative = safe_relative(name)
             source = (self.project / "input" / relative).resolve()
             source.relative_to((self.project / "input").resolve())
-            if not source.is_file() or source.stat().st_size > 100 * 1024 * 1024:
-                raise ValueError("输入图片缺失或超过 100 MB。")
+            if not source.is_file() or source.stat().st_size > size_limit:
+                raise ValueError(f"参考素材缺失或超过 {size_limit // 1024**2} MB：{name}")
             new_name = job_id + "-" + str(ident).replace(":", "_") + source.suffix
             # Node IDs are untrusted; never let them form arbitrary file paths.
             new_name = re.sub(r"[^A-Za-z0-9_.-]", "_", new_name)
             target = folder / new_name
             shutil.copyfile(source, target)
-            node["inputs"]["image"] = new_name
+            node["inputs"][field] = new_name
             assets.append((target, "/content/h3-worker-files/input/" + new_name))
         request_path = folder / "request.json"
         request_path.write_text(json.dumps(request, ensure_ascii=False))
@@ -367,6 +395,8 @@ class ColabBroker:
                     if key not in mapping:
                         raise ValueError("结果中的文件尚未下载。")
                     value["subfolder"] = mapping[key]
+                    if "fullpath" in value:
+                        value["fullpath"] = str(self.project / "output" / mapping[key] / value["filename"])
                 for child in value.values():
                     rewrite(child)
             elif isinstance(value, list):
@@ -380,8 +410,11 @@ class ColabBroker:
         self.active_job = True
         failed = True
         try:
+            manifest = plan_environment(prompt, partial_targets)
             folder, request, assets = self.prepare_job(prompt, prompt_id, extra, partial_targets)
-            self.ensure_gpu()
+            self.event_job_id = prompt_id
+            self.event_client_id = extra.get("client_id")
+            self.ensure_gpu(manifest)
             self.set_stage("正在传送素材")
             for source, target in assets:
                 self.transfer(["upload", "-s", self.session, str(source), target], timeout=60)
@@ -405,6 +438,8 @@ class ColabBroker:
                     self.stop_gpu()
             finally:
                 self.active_job = False
+                self.event_job_id = None
+                self.event_client_id = None
 
     def shutdown(self):
         self.cancelled.set()

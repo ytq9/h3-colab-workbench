@@ -2,7 +2,7 @@
 
 在 Mac 上用原版 **ComfyUI** 编辑视频工作流，点击运行后才申请 **Google Colab A100** 生成视频。结果取回并保存后释放 GPU，本机画布继续保留。
 
-适合个人使用自己的 Colab 计算额度进行 MiniMax H3 文生视频、图生视频。工作台运行在本机，不需要每轮登录临时公网入口。
+适合个人使用自己的 Colab 计算额度进行 MiniMax H3 文生视频、图生视频及多素材参考生成。工作台运行在本机，不需要每轮登录临时公网入口。
 
 本项目以 **GPL-3.0-only** 开源，欢迎通过 [Issue](https://github.com/ytq9/h3-colab-workbench/issues) 反馈问题或提交 Pull Request。参与开发请阅读[贡献说明](CONTRIBUTING.md)；模型和第三方依赖遵循各自的许可证。
 
@@ -23,6 +23,7 @@ flowchart LR
 - 连续排队任务复用 GPU；成功、失败或取消后执行释放，并显示是否确认。
 - 文件传输最多重试一次，不自动重试视频生成。
 - 模型留在 Colab，本机只安装 CPU 编辑环境。视频、素材和工作流保存到自己选择的目录。
+- 可选安装参考工作流节点，支持多图、参考音视频、KJ 画布预览和 VHS 视频输出；按当前执行分支选择模型。
 
 ## 支持范围
 
@@ -30,10 +31,10 @@ flowchart LR
 |---|---|
 | 本机 | Apple Silicon Mac、macOS 14 或更高、Python 3.12、Chrome |
 | 云端 | 可分配 A100 的 Google Colab 账号，有现成计算额度 |
-| 工作流 | H3 文生视频、图生视频，含模型原生声音 |
-| 模型集合 | FL2VA + Turbo，合计约 42.03 GB，在 Colab 下载 |
+| 工作流 | H3 文生视频、图生视频、多素材参考生成，含模型原生声音 |
+| 模型集合 | FL2VA 约 42.03 GB；参考组合约 55.89 GB；按工作流选用，在 Colab 下载 |
 | 保存 | 本机目录；选择 Google Drive 同步目录即可同步 |
-| 暂未验收 | 1080p 显存与成本、长时间连续运行、参考音视频工作流、Windows/Linux 安装 |
+| 暂未验收 | 1080p 显存与成本、长时间连续运行、参考组合的 A100 实际推理、Windows/Linux 安装 |
 
 编辑不占用 Colab GPU；安装环境、下载模型、加载和生成均计入 GPU 使用时间。具体额度以 Colab 的查询结果为准，软件不会购买额度或调用付费视频 API。
 
@@ -66,6 +67,8 @@ python3.12 -m venv .venv
 3. 点击 **运行**。底部状态条依次显示申请 GPU、安装环境、准备模型、传送素材、生成、取回结果、释放。
 4. 结果保存到 `项目目录/output/video/<任务编号>/…`，队列结束后显示“GPU 已释放”。
 
+已有 H3 参考工作流可按[参考工作流配置](docs/reference-workflows.md)安装所需节点后导入；仓库不附带第三方作者的个人工作流或素材。
+
 生成和取回结果期间，让 Mac 保持开机、联网。关闭浏览器标签不会停止后台；需要停止任务时使用 ComfyUI 的中止按钮。每轮冷启动都有准备成本，确定的一组镜头可以连续排队。
 
 常用命令：
@@ -82,6 +85,7 @@ python3.12 -m venv .venv
 
 - [安装、配置与迁移](docs/setup.md)
 - [ComfyUI 操作与 1080p 参数](docs/usage.md)
+- [参考工作流、插件与模型](docs/reference-workflows.md)
 - [架构、生命周期与目录](docs/architecture.md)
 - [故障排查与已知限制](docs/troubleshooting.md)
 - [贡献说明](CONTRIBUTING.md) · [更新记录](CHANGELOG.md) · [安全说明](SECURITY.md)

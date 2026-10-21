@@ -115,6 +115,7 @@ def main(argv=None):
     install = sub.add_parser("install", help="Install the pinned CPU editor")
     install.add_argument("--wheelhouse", type=Path)
     install.add_argument("--archive", type=Path)
+    sub.add_parser("install-reference", help="Install pinned reference workflow nodes on the Mac; no GPU")
     launch = sub.add_parser("start", help="Start or reuse the local CPU editor")
     launch.add_argument("--no-browser", action="store_true")
     sub.add_parser("stop", help="Release GPU and stop an idle local editor")
@@ -140,6 +141,10 @@ def main(argv=None):
             install_editor(settings, args.wheelhouse, args.archive)
         elif args.command == "start":
             start(settings, args.no_browser)
+        elif args.command == "install-reference":
+            from .extensions import install_reference_extensions
+            print("Installed: " + ", ".join(install_reference_extensions(settings)))
+            print("请在当前队列为空、GPU 释放后重新启动本机工作台。")
         elif args.command == "stop":
             stop(settings)
         elif args.command == "doctor":

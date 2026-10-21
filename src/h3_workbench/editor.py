@@ -9,6 +9,8 @@ import sys
 from .config import RESOURCES, load_settings
 from .broker import ColabBroker
 from .executor import executor_class
+from .catalog import all_models
+from .extensions import installed_extensions
 
 
 def main():
@@ -24,15 +26,16 @@ def main():
                 "--disable-assets", "--preview-method", "none", "--models-directory", str(models),
                 "--input-directory", str(DRIVE / "input"), "--output-directory", str(DRIVE / "output"),
                 "--user-directory", str(DRIVE / "user"), "--database-url", "sqlite:///" + str(LOCAL / "editor.db")]
+    custom_nodes = installed_extensions(settings)
+    if custom_nodes:
+        sys.argv += ["--whitelist-custom-nodes", *custom_nodes]
     import comfy.options
     comfy.options.enable_args_parsing()
     import folder_paths
-    manifest = json.loads((RESOURCES / "manifest.json").read_text())
     choices = {}
-    for model in manifest["models"]:
-        if "fl2va" in model["families"]:
-            directory, name = model["destination"].split("/", 1)
-            choices.setdefault(directory, set()).add(name)
+    for model in all_models():
+        directory, name = model["destination"].split("/", 1)
+        choices.setdefault(directory, set()).add(name)
     original_list = folder_paths.get_filename_list
     def editor_choices(name):
         canonical = {"unet": "diffusion_models", "clip": "text_encoders"}.get(name, name)

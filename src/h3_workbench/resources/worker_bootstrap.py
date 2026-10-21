@@ -73,7 +73,10 @@ if origin != "https://github.com/Comfy-Org/ComfyUI.git":
     raise RuntimeError("Unexpected ComfyUI source.")
 run(["git", "-C", COMFY_DIR, "fetch", "--depth", "1", "origin", revision])
 run(["git", "-C", COMFY_DIR, "checkout", "--detach", revision])
-run([sys.executable, "-m", "pip", "install", "-q", "-r", COMFY_DIR / "requirements.txt", "huggingface_hub"])
+extras = sorted({r for e in MANIFEST.get("extensions", []) for r in e.get("requirements", [])})
+run([sys.executable, "-m", "pip", "install", "-q", "-r", COMFY_DIR / "requirements.txt",
+     "huggingface_hub", "websocket-client==1.9.2", *extras])
+CUSTOM_NODES = install_extensions(COMFY_DIR, MANIFEST.get("extensions", []))
 run([sys.executable, "-c", "import torch; assert torch.cuda.is_available()"])
 os.environ.update(
     HF_HUB_DISABLE_TELEMETRY="1", HF_HOME=str(RUN_ROOT / "hf-cache"),
@@ -132,6 +135,8 @@ arguments = [
     "--input-directory", str(INPUT_DIR), "--output-directory", str(OUTPUT_DIR),
     "--user-directory", str(USER_DIR), "--database-url", "sqlite:///" + str(RUN_ROOT / "comfyui.db"),
 ]
+if CUSTOM_NODES:
+    arguments += ["--whitelist-custom-nodes", *CUSTOM_NODES]
 with (LOG_DIR / "comfyui.log").open("a") as handle:
     H3_PROCESS = subprocess.Popen(arguments, cwd=COMFY_DIR, stdout=handle, stderr=subprocess.STDOUT)
 deadline = time.monotonic() + 180
@@ -143,6 +148,11 @@ while time.monotonic() < deadline:
             info = json.load(response)
         if "MiniMaxH3ImageToVideo" not in info:
             raise RuntimeError("Required native H3 node is missing.")
+        for extension in MANIFEST.get("extensions", []):
+            if any(node not in info for node in extension.get("node_types", [])):
+                raise RuntimeError("Required custom node failed to load: " + extension["name"])
+        if any(e.get("node_prefix") == "VHS_" for e in MANIFEST.get("extensions", [])) and "VHS_VideoCombine" not in info:
+            raise RuntimeError("Required video output nodes failed to load.")
         break
     except (urllib.error.URLError, TimeoutError):
         time.sleep(2)

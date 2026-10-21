@@ -4,7 +4,7 @@
 
 - Apple Silicon Mac，macOS 14 或更高，Python 3.12，Git，Google Chrome。
 - Google 账号能实际分配 Colab A100，且有可用计算额度。是否可分配取决于 Colab；订阅名称本身不能替代实际查询。
-- 本机要有 CPU 编辑依赖所需磁盘空间。约 42 GB 的模型下载发生在 Colab。
+- 本机要有 CPU 编辑依赖所需磁盘空间。模型下载发生在 Colab：基础组合约 42 GB，参考组合约 56 GB。
 
 先按根 README 安装 `.venv` 中的命令行工具，再运行 `init`、`install`、`start`。安装只建立本机环境；首次授权只建立 Google 连接；点击 ComfyUI 的运行按钮才申请 GPU。
 

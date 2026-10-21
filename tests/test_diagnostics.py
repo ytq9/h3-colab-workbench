@@ -1,10 +1,21 @@
 import logging
 import unittest
 
-from h3_workbench.diagnostics import RedactedFormatter, TransportEvents
+from h3_workbench.diagnostics import RedactedFormatter, TransportEvents, without_preview_events
 
 
 class DiagnosticTests(unittest.TestCase):
+    def test_streamed_preview_chunks_are_not_persisted_in_execution_history(self):
+        chunks = ["H3_STAGE Generating\nH3_EV", 'ENT {"image":"private-', 'frame"}\nH3_JOB_FINISHED\n']
+        original = {"code": "job()", "outputs": [
+            {"output_type": "stream", "name": "stdout", "text": chunk} for chunk in chunks
+        ] + [{"output_type": "error", "evalue": "failed"}]}
+        result = without_preview_events(original)
+        self.assertEqual(result["outputs"][0]["text"], "H3_STAGE Generating\nH3_JOB_FINISHED\n")
+        self.assertEqual(result["outputs"][1], original["outputs"][3])
+        self.assertEqual(original["outputs"][1]["text"], chunks[1])
+        self.assertNotIn("private-frame", str(result))
+
     def test_wire_bodies_are_dropped_and_warning_credentials_redacted(self):
         gate = TransportEvents()
         for logger, message in (

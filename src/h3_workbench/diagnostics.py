@@ -4,6 +4,31 @@ from logging.handlers import RotatingFileHandler
 import re
 
 
+def without_preview_events(data):
+    """Keep execution diagnostics without persisting streamed preview frames."""
+    result = dict(data)
+    outputs = []
+    # IOPub may split one event between multiple stream messages. Filter after
+    # joining adjacent chunks of the same stream so base64 tails cannot leak
+    # into the history file.
+    for original in data.get("outputs", []):
+        output = dict(original)
+        if (output.get("output_type") == "stream" and outputs
+                and outputs[-1].get("output_type") == "stream"
+                and outputs[-1].get("name") == output.get("name")
+                and isinstance(output.get("text"), str)
+                and isinstance(outputs[-1].get("text"), str)):
+            outputs[-1]["text"] += output["text"]
+        else:
+            outputs.append(output)
+    for output in outputs:
+        if output.get("output_type") == "stream" and isinstance(output.get("text"), str):
+            output["text"] = "".join(line for line in output["text"].splitlines(keepends=True)
+                                     if not line.startswith("H3_EVENT "))
+    result["outputs"] = outputs
+    return result
+
+
 def redact_diagnostic(text):
     text = re.sub(r"(?i)(Bearer\s+)[A-Za-z0-9._~-]+", r"\1<REDACTED>", text)
     text = re.sub(r"eyJ[A-Za-z0-9_.-]{20,}", "<REDACTED>", text)

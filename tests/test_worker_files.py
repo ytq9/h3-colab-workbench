@@ -6,7 +6,10 @@ import json
 import os
 from pathlib import Path
 import shutil
+import sys
 import tempfile
+import threading
+from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
@@ -14,6 +17,73 @@ from h3_workbench.config import RESOURCES
 
 
 class WorkerFileTests(unittest.TestCase):
+    def test_worker_collects_vhs_sidecar_even_when_live_preview_is_unavailable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            output = root / "output/clips"
+            output.mkdir(parents=True)
+            for name in ("clip.mp4", "clip.png"):
+                (output / name).write_bytes(b"fixture")
+            request, result = root / "request.json", root / "result.json"
+            request.write_text(json.dumps({"prompt": {}, "client_id": "fixture", "stream_events": True}))
+            namespace = {"OUTPUT_DIR": output.parent}
+            exec((RESOURCES / "worker_job.py").read_text(), namespace)
+            namespace["h3_start_events"] = Mock(side_effect=OSError("preview offline"))
+            namespace["h3_job_json"] = Mock(side_effect=[{"prompt_id": "fixture"}, {"fixture": {
+                "status": {"status_str": "success"}, "outputs": {"1": {"gifs": [{
+                    "filename": "clip.mp4", "subfolder": "clips", "type": "output", "workflow": "clip.png",
+                }]}}
+            }}])
+            with redirect_stdout(io.StringIO()):
+                namespace["h3_worker_job"](str(request), str(result))
+            receipt = json.loads(result.read_text())
+            self.assertTrue(receipt["success"], receipt.get("error"))
+            self.assertEqual({f["filename"] for f in receipt["files"]}, {"clip.mp4", "clip.png"})
+            self.assertNotIn("stream_events", namespace["h3_job_json"].call_args_list[0].args[1])
+            self.assertFalse(namespace["H3_WORKER_BUSY"])
+            (output / "clip.png").unlink()
+            namespace["h3_job_json"].side_effect = [
+                {"prompt_id": "fixture"}, {"fixture": {"status": {"status_str": "success"},
+                "outputs": receipt["outputs"]}},
+            ]
+            with redirect_stdout(io.StringIO()):
+                namespace["h3_worker_job"](str(request), str(result))
+            receipt = json.loads(result.read_text())
+            self.assertTrue(receipt["success"], receipt.get("error"))
+            self.assertEqual([f["filename"] for f in receipt["files"]], ["clip.mp4"])
+            self.assertNotIn("workflow", receipt["outputs"]["1"]["gifs"][0])
+
+    def test_worker_event_relay_filters_other_jobs_and_closes_connection(self):
+        namespace = {}
+        exec((RESOURCES / "worker_job.py").read_text(), namespace)
+        events = [
+            {"type": "status", "data": {}},
+            {"type": "progress", "data": {"prompt_id": "another", "value": 1}},
+            {"type": "progress", "data": {"prompt_id": "fixture", "value": 1}},
+            {"type": "kj_preview_override", "data": {"node_id": "150", "image": "fixture"}},
+        ]
+        messages = iter([b"binary"] + [json.dumps(event) for event in events])
+        drained = threading.Event()
+        def receive():
+            try:
+                return next(messages)
+            except StopIteration:
+                drained.set()
+                raise OSError("closed")
+        connection = Mock(recv=Mock(side_effect=receive))
+        websocket = SimpleNamespace(create_connection=Mock(return_value=connection),
+                                    WebSocketTimeoutException=TimeoutError)
+        captured = io.StringIO()
+        with patch.dict(sys.modules, {"websocket": websocket}), redirect_stdout(captured):
+            stop = namespace["h3_start_events"]("fixture")
+            self.assertTrue(drained.wait(2))
+            stop()
+        relayed = [json.loads(line.removeprefix("H3_EVENT ")) for line in captured.getvalue().splitlines()]
+        self.assertEqual([e["type"] for e in relayed], ["progress", "kj_preview_override"])
+        self.assertEqual({e["job_id"] for e in relayed}, {"fixture"})
+        self.assertIn("127.0.0.1:8188/ws?clientId=fixture", websocket.create_connection.call_args.args[0])
+        connection.close.assert_called_once()
+
     def test_model_cache_download_and_copy_do_not_add_content_scans(self):
         tree = ast.parse((RESOURCES / "worker_bootstrap.py").read_text())
         functions = [node for node in tree.body if isinstance(node, ast.FunctionDef)
