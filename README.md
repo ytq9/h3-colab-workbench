@@ -6,8 +6,6 @@
 
 本项目以 **GPL-3.0-only** 开源，欢迎通过 [Issue](https://github.com/ytq9/h3-colab-workbench/issues) 反馈问题或提交 Pull Request。参与开发请阅读[贡献说明](CONTRIBUTING.md)；模型和第三方依赖遵循各自的许可证。
 
-**v0.1.1** 修复延迟连接时命令提前发送的问题，29 项本地回归测试通过。v0.1.0 已完成一次约五秒的真实 GPU 生成、结果校验和自动释放；1080p 尚未实测。详见[验证记录](docs/verification.md)和[故障分析](docs/incident-2026-10-21.md)。
-
 ```mermaid
 flowchart LR
     A["Mac · ComfyUI CPU 编辑"] -->|"点击运行 · 工作流与素材"| B["Colab · 按需申请 A100"]
@@ -86,7 +84,6 @@ python3.12 -m venv .venv
 - [ComfyUI 操作与 1080p 参数](docs/usage.md)
 - [架构、生命周期与目录](docs/architecture.md)
 - [故障排查与已知限制](docs/troubleshooting.md)
-- [验证范围](docs/verification.md)
 - [贡献说明](CONTRIBUTING.md) · [更新记录](CHANGELOG.md) · [安全说明](SECURITY.md)
 
 ## 开发

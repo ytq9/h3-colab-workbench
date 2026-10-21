@@ -5,6 +5,24 @@
 /docs/adr/
 /docs/design-session.md
 /docs/minimum-consumption-test.md
+/docs/incident-*.md
+/docs/verification*.json
+/docs/verification.md
+/local-notes/
+
+# Local assistant instructions, skills and editor-agent settings.
+AGENTS.md
+AGENTS.override.md
+CLAUDE.md
+GEMINI.md
+SKILL.md
+MEMORY.md
+.codex/
+.claude/
+.agents/
+.cursor/
+.cursorrules
+/.github/copilot-instructions.md
 
 # Environments, generated packages, local settings and application state.
 .venv/
