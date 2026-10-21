@@ -4,6 +4,8 @@
 
 适合个人使用自己的 Colab 计算额度进行 MiniMax H3 文生视频、图生视频。工作台运行在本机，不需要每轮登录临时公网入口。
 
+本项目以 **GPL-3.0-only** 开源，欢迎通过 [Issue](https://github.com/ytq9/h3-colab-workbench/issues) 反馈问题或提交 Pull Request。参与开发请阅读[贡献说明](CONTRIBUTING.md)；模型和第三方依赖遵循各自的许可证。
+
 **v0.1.1** 修复延迟连接时命令提前发送的问题，29 项本地回归测试通过。v0.1.0 已完成一次约五秒的真实 GPU 生成、结果校验和自动释放；1080p 尚未实测。详见[验证记录](docs/verification.md)和[故障分析](docs/incident-2026-10-21.md)。
 
 ```mermaid
@@ -53,7 +55,7 @@ python3.12 -m venv .venv
 .venv/bin/h3-workbench start
 ```
 
-将 `you@example.com` 换成实际有 Colab 额度的 Google 账号。若要使用 Drive，把 `--project-dir` 改成 Mac 上自己的 Drive 同步目录。私有仓库需要先登录 GitHub。
+将 `you@example.com` 换成实际有 Colab 额度的 Google 账号。若要使用 Drive，把 `--project-dir` 改成 Mac 上自己的 Drive 同步目录。公开仓库可直接克隆，无需登录 GitHub。
 
 也可以双击 [`scripts/setup.command`](scripts/setup.command) 完成首次安装，之后双击 [`scripts/open.command`](scripts/open.command) 打开。
 
